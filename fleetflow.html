@@ -1,0 +1,595 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script>var t=null,q=/[?&]t=(dark|light)/.exec(location.search);if(q)t=q[1];if(!t)try{t=localStorage.getItem('eg-theme')}catch(e){}if(!t)try{t=sessionStorage.getItem('eg-theme')}catch(e){}if(!t){var m=/egt=(dark|light)/.exec(window.name||'');t=m&&m[1]}document.documentElement.setAttribute('data-theme',t==='dark'?'dark':'light');if('scrollRestoration'in history)history.scrollRestoration='manual';</script>
+<title>Fleet , Ethan Goldshmid</title>
+<style>
+  :root{padding-top:env(safe-area-inset-top,0);padding-bottom:env(safe-area-inset-bottom,0)}
+  html,body{margin:0}img{max-width:100%}[hidden]{display:none!important}
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Geist+Mono:wght@400&display=swap">
+<link rel="stylesheet" href="base.css">
+<link rel="stylesheet" href="bmw.css">
+<style>
+  /* ---- Fleet mock components ---- */
+  .mock{font-family:var(--mono);font-size:11px;color:var(--ink-2)}
+  .cmd{display:grid;grid-template-columns:200px 1fr 190px;gap:0;min-height:300px}
+  .cmd__q{border-right:1px solid var(--line-2);padding:12px;display:flex;flex-direction:column;gap:8px;min-width:0}
+  .cmd__q h5,.cmd__t h5{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0 0 2px}
+  .qrow{border:1px solid var(--line-2);border-radius:7px;padding:8px;display:flex;flex-direction:column;gap:4px;background:var(--paper)}
+  .qrow.crit{border-left:3px solid var(--crit);background:var(--crit-bg)}
+  .qrow.warn{border-left:3px solid var(--warn)}
+  .qrow.ok{border-left:3px solid var(--good)}
+  .qrow b{font-family:var(--sans);font-size:12px;color:var(--ink);font-weight:600;letter-spacing:-.01em}
+  .qrow .m{display:flex;justify-content:space-between;font-size:9.5px;color:var(--muted)}
+  .cmd__map{position:relative;background:
+     linear-gradient(var(--line-2) 1px,transparent 1px) 0 0/34px 34px,
+     linear-gradient(90deg,var(--line-2) 1px,transparent 1px) 0 0/34px 34px,
+     var(--paper-2);overflow:hidden}
+  .veh{position:absolute;width:9px;height:9px;border-radius:50%;transform:translate(-50%,-50%)}
+  .veh.c{background:var(--crit);box-shadow:0 0 0 4px var(--crit-bg)}
+  .veh.w{background:var(--warn)}
+  .veh.g{background:var(--good)}
+  .veh.sel{width:13px;height:13px;outline:2px solid var(--accent);outline-offset:2px}
+  .cmd__map .tag{position:absolute;font-size:9px;background:var(--card);border:1px solid var(--line);border-radius:5px;padding:2px 6px;color:var(--ink);transform:translate(-50%,-150%)}
+  .cmd__t{padding:12px;display:flex;flex-direction:column;gap:9px;min-width:0}
+  .feed{aspect-ratio:16/10;border:1px solid var(--line-2);border-radius:7px;background:linear-gradient(135deg,var(--paper-2),var(--neutral-bg));position:relative;overflow:hidden}
+  .feed::after{content:"CAM 01 LIVE";position:absolute;left:7px;top:6px;font-size:8px;color:var(--good)}
+  .feed::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent 0 6px,rgba(127,127,127,.05) 6px 7px)}
+  .tele{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .tele div{border:1px solid var(--line-2);border-radius:6px;padding:6px 8px}
+  .tele span{display:block;font-size:8.5px;color:var(--muted)}
+  .tele b{font-size:14px;color:var(--ink);font-family:var(--mono)}
+  @media(max-width:720px){.cmd{grid-template-columns:1fr}.cmd__q,.cmd__map{border-right:0;border-bottom:1px solid var(--line-2)}.cmd__map{min-height:150px}}
+
+  /* flow */
+  .flowc{display:flex;flex-direction:column;gap:14px;min-width:620px;padding:18px}
+  .flane{display:flex;align-items:center;gap:10px;flex-wrap:nowrap}
+  .fnode{border:1px solid var(--line);border-radius:9px;padding:9px 13px;background:var(--card);font-size:12px;color:var(--ink);white-space:nowrap;display:flex;flex-direction:column;gap:2px}
+  .fnode small{font-family:var(--mono);font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+  .fnode.start{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+  .fnode.end{border-color:var(--good);background:var(--good-bg)}
+  .fgate{border:1px dashed var(--accent);color:var(--accent-ink);border-radius:9px;padding:9px 13px;font-family:var(--mono);font-size:11px;white-space:nowrap;background:var(--card)}
+  .farr{color:var(--muted);flex:0 0 auto}
+  .fbranch{display:flex;flex-direction:column;gap:8px}
+  .fchip{font-family:var(--mono);font-size:9.5px;color:var(--muted);border:1px solid var(--line-2);border-radius:100px;padding:2px 9px;white-space:nowrap;align-self:flex-start}
+  .flane.fail .fnode{border-style:dashed}
+  .flane.fail{opacity:.95}
+  .fstate{display:inline-flex;align-items:center;gap:5px}
+  .fstate i{width:7px;height:7px;border-radius:2px;display:block}
+
+  /* blueprint svg text */
+  .bp text{font-family:var(--mono);fill:var(--muted)}
+  .bp .lbl{fill:var(--ink)}
+  .bp rect.mod{fill:var(--paper-2);stroke:var(--line);stroke-width:1}
+  .bp rect.hot{fill:var(--accent);opacity:.08;stroke:var(--accent);stroke-dasharray:4 3}
+  .bp line.lead{stroke:var(--accent);stroke-width:1}
+  .bp circle.pin{fill:var(--accent)}
+  .bp .pint{fill:#fff;font-size:11px;font-weight:600}
+
+  /* media slot */
+  .media-slot{border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:var(--card)}
+  .media-slot__frame{aspect-ratio:16/9;position:relative;display:grid;place-items:center;background:repeating-linear-gradient(135deg,var(--paper-2) 0 14px,transparent 14px 28px),var(--card)}
+  .media-slot__play{width:60px;height:60px;border-radius:50%;background:var(--accent);display:grid;place-items:center;color:#fff}
+  .media-slot__play svg{width:22px;height:22px}
+  .media-slot__cap{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 16px;border-top:1px solid var(--line);font-size:.82rem;color:var(--ink-2);flex-wrap:wrap}
+  .media-slot__cap .tag{font-family:var(--mono);font-size:.68rem;color:var(--muted);border:1px dashed var(--line);border-radius:100px;padding:4px 10px}
+
+  /* severity distribution infographic */
+  .sev{display:flex;flex-direction:column;gap:15px;max-width:640px}
+  .sev__row{display:grid;grid-template-columns:150px 1fr 48px;gap:14px;align-items:center}
+  .sev__k{font-size:.84rem;color:var(--ink);display:flex;align-items:center;gap:8px}
+  .sev__k i{width:9px;height:9px;border-radius:2px;display:block;flex:0 0 auto}
+  .sev__track{height:14px;border-radius:7px;background:var(--neutral-bg);overflow:hidden;min-width:0}
+  .sev__fill{height:100%;border-radius:7px;transition:width .9s cubic-bezier(.2,.7,.2,1)}
+  .sev__n{font-family:var(--mono);font-size:.84rem;color:var(--ink-2);text-align:right;font-variant-numeric:tabular-nums}
+  .sev__note{font-size:.82rem;color:var(--muted);margin-top:6px;max-width:62ch;line-height:1.5}
+  @media(max-width:560px){.sev__row{grid-template-columns:1fr 44px;grid-template-areas:"k n" "t t";row-gap:7px}.sev__k{grid-area:k}.sev__n{grid-area:n}.sev__track{grid-area:t}}
+
+  /* ---- autoplay copilot demo (loops) ---- */
+  .ffdemo{border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:#09090B;color:#ededed;position:relative}
+  .ffdemo__bar{display:flex;align-items:center;gap:8px;padding:11px 15px;border-bottom:1px solid #1b1b1f;font-family:var(--mono);font-size:11px;color:#8f8f8f}
+  .ffdemo__bar .live{margin-left:auto;display:inline-flex;align-items:center;gap:6px;color:#3f8cff}
+  .ffdemo__bar .live i{width:7px;height:7px;border-radius:50%;background:#3f8cff;animation:ffpulse 1.8s infinite}
+  @keyframes ffpulse{0%,100%{opacity:1}50%{opacity:.3}}
+  .ffdemo__grid{display:grid;grid-template-columns:1.25fr 1fr}
+  .ffdemo__q{padding:16px;border-right:1px solid #16161a;position:relative;overflow:hidden;min-width:0}
+  .ffdemo__scan{position:absolute;left:0;right:0;height:60px;top:-60px;background:linear-gradient(180deg,transparent,rgba(50,145,255,.09),transparent);animation:ffscan 5s linear infinite}
+  @keyframes ffscan{0%{top:-60px}100%{top:100%}}
+  .ffq{border:1px solid #1e1e22;border-radius:9px;padding:10px 12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;font-family:var(--mono);font-size:10px;color:#8f8f8f;background:rgba(255,255,255,.015)}
+  .ffq b{font-family:var(--sans);font-size:12px;color:#fff;font-weight:600}
+  .ffq.crit{border-left:3px solid #e22718}
+  .ffq.claim{border-color:#3f8cff;box-shadow:0 0 0 1px #3f8cff inset;animation:ffclaim 7s ease-in-out infinite}
+  @keyframes ffclaim{0%,8%{box-shadow:0 0 0 1px transparent inset;border-color:#1e1e22}14%,46%{box-shadow:0 0 0 1px #3f8cff inset;border-color:#3f8cff}54%,100%{box-shadow:0 0 0 1px transparent inset;border-color:#1e1e22}}
+  .ffq__chip{font-size:9px;color:#3f8cff;opacity:0;animation:ffchip 7s ease-in-out infinite}
+  @keyframes ffchip{0%,10%{opacity:0}16%,46%{opacity:1}52%,100%{opacity:0}}
+  .ffdemo__spark{height:34px;margin-top:4px}
+  .ffdemo__spark svg{width:100%;height:34px;display:block}
+  .ffdemo__spark path.l{fill:none;stroke:#3f8cff;stroke-width:2;stroke-dasharray:420;stroke-dashoffset:420;animation:ffdash 4s ease-in-out infinite}
+  @keyframes ffdash{0%{stroke-dashoffset:420}60%,100%{stroke-dashoffset:0}}
+  .ffcopilot{padding:16px;background:radial-gradient(120% 90% at 100% 0,rgba(121,40,202,.16),transparent 60%),radial-gradient(120% 90% at 0 100%,rgba(50,145,255,.14),transparent 55%);display:flex;flex-direction:column;gap:11px;min-width:0}
+  .ffcopilot__h{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:#fff}
+  .ffcopilot__h .orb{width:16px;height:16px;border-radius:50%;background:conic-gradient(from 0deg,#3f8cff,#3f8cff,#3f8cff,#3f8cff);animation:ffspin 6s linear infinite}
+  @keyframes ffspin{to{transform:rotate(360deg)}}
+  .ffsug{position:relative;height:74px}
+  .ffsug p{position:absolute;inset:0;font-size:11.5px;line-height:1.45;color:#c9c9cf;border:1px solid #1e1e22;border-radius:9px;padding:10px 12px;background:rgba(255,255,255,.02);opacity:0;animation:ffcyc 10.5s ease-in-out infinite}
+  .ffsug p b{color:#fff}
+  .ffsug p:nth-child(2){animation-delay:3.5s}
+  .ffsug p:nth-child(3){animation-delay:7s}
+  @keyframes ffcyc{0%{opacity:0;transform:translateY(6px)}4%,28%{opacity:1;transform:none}33%,100%{opacity:0;transform:translateY(-6px)}}
+  .fftype{display:inline-flex;gap:3px;align-items:center}
+  .fftype i{width:4px;height:4px;border-radius:50%;background:#3f8cff;animation:fftype 1.4s infinite}
+  .fftype i:nth-child(2){animation-delay:.2s}.fftype i:nth-child(3){animation-delay:.4s}
+  @keyframes fftype{0%,60%,100%{opacity:.25}30%{opacity:1}}
+  @media(prefers-reduced-motion:reduce){.ffdemo__scan,.ffq.claim,.ffq__chip,.ffdemo__spark path.l,.ffcopilot__h .orb,.ffsug p,.fftype i{animation:none}.ffsug p:first-child{opacity:1}.ffq__chip{opacity:1}.ffdemo__spark path.l{stroke-dashoffset:0}}
+  @media(max-width:620px){.ffdemo__grid{grid-template-columns:1fr}.ffdemo__q{border-right:0;border-bottom:1px solid #16161a}}
+
+  /* ---- component before/after ---- */
+  .cba{display:grid;grid-template-columns:1fr auto 1fr;gap:18px;align-items:center}
+  .cba__card{border:1px solid var(--line);border-radius:var(--radius);background:var(--card);padding:18px}
+  .cba__tag{font-family:var(--mono);font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px}
+  .cba__arrow{color:var(--accent);display:grid;place-items:center}
+  .cba__arrow svg{width:28px;height:28px}
+  .cba__note{margin-top:16px;font-size:.84rem;color:var(--ink-2);line-height:1.55;border-left:2px solid var(--accent);padding-left:14px}
+  .cba__note b{color:var(--ink)}
+  /* flat legacy row */
+  .rowflat{border:1px solid var(--line);border-radius:7px;padding:11px 13px;display:flex;justify-content:space-between;align-items:center;font-size:.8rem;color:var(--ink-2)}
+  .rowflat+.rowflat{margin-top:7px}
+  /* triaged row */
+  .rowtri{border:1px solid var(--line);border-left:3px solid var(--crit);border-radius:7px;padding:11px 13px;background:var(--crit-bg)}
+  .rowtri .t{display:flex;justify-content:space-between;align-items:center}
+  .rowtri b{font-size:.85rem;color:var(--ink)}
+  .rowtri .cd{font-family:var(--mono);font-size:.8rem;color:var(--crit)}
+  .rowtri .meta{font-family:var(--mono);font-size:.68rem;color:var(--muted);margin-top:5px;display:flex;gap:10px}
+  @media(max-width:720px){.cba{grid-template-columns:1fr}.cba__arrow{transform:rotate(90deg)}}
+
+  /* five hurdles, numbered grid with generated data motifs (no icons) */
+  .hurdles{display:grid;grid-template-columns:repeat(5,1fr);border-top:1px solid var(--line)}
+  .hdl{padding:26px 18px 26px 0;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:14px}
+  .hdl:last-child{border-right:0}
+  .hdl:not(:first-child){padding-left:18px}
+  .hdl__n{font-family:var(--mono);font-size:.8rem;color:var(--muted);letter-spacing:.1em}
+  .hdl__bar{height:30px}
+  .hdl__bar svg{height:30px;width:auto;display:block;overflow:visible}
+  .hdl h4{font-size:1.02rem;font-weight:400;line-height:1.22;letter-spacing:-.01em}
+  .hdl p{font-size:.84rem;color:var(--ink-2);line-height:1.55}
+  @media(max-width:980px){.hurdles{grid-template-columns:1fr 1fr}.hdl{border-right:0;border-bottom:1px solid var(--line);padding-left:0!important}.hdl:nth-child(odd){padding-right:18px;border-right:1px solid var(--line)}}
+  @media(max-width:560px){.hurdles{grid-template-columns:1fr}.hdl:nth-child(odd){border-right:0}}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <nav class="nav" aria-label="Primary">
+    <a class="nav__brand" href="index.html">Ethan&nbsp;Goldshmid<b>.</b></a>
+    <div class="nav__links">
+      <a href="index.html" aria-current="page">Work</a>
+      <a href="about.html">About</a>
+      <a href="contact.html">Contact</a>
+    </div>
+    
+    <button class="theme-toggle" data-theme-toggle aria-label="Toggle colour theme">
+      <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8"/></svg>
+    </button>
+  </nav>
+</header>
+
+<!-- stage rail -->
+<!-- ============ STAGE 01, HERO & META ============ -->
+<section id="s1" class="cs-hero">
+  <div class="mesh" aria-hidden="true"></div>
+  <div class="wrap">
+    <a class="cs-back" href="index.html">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
+      All work
+    </a>
+    <p class="badge" data-rv><b>Fleet</b>Autonomous Logistics and Telemetry</p>
+    <h1 class="fleet-logo" aria-label="Fleet"><svg viewBox="0 0 1410 377" role="img" aria-hidden="true">
+      <defs>
+        <linearGradient id="flg1" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#0b2a8f"/><stop offset=".55" stop-color="#1668e3"/><stop offset="1" stop-color="#1fb4ff"/></linearGradient>
+        <linearGradient id="flg2" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#0b2a8f"/><stop offset=".6" stop-color="#1668e3"/><stop offset="1" stop-color="#1fb4ff"/></linearGradient>
+      </defs>
+      <path d="M75 170C80 80 130 2 220 2H440L412 94H222C150 96 104 120 75 170Z" fill="url(#flg1)"/>
+      <path d="M76 170C98 124 148 100 196 96L183 146Z" fill="#0a1236"/>
+      <path d="M5 377C14 300 52 250 130 240L62 377Z" fill="#0a1236"/>
+      <path d="M22 330C40 222 100 148 200 146H300C292 198 262 232 218 238H136C76 248 42 288 22 330Z" fill="url(#flg2)"/>
+      <path d="M296 146H365L336 238H218C262 226 291 190 296 146Z" fill="#e5352b"/>
+      <text x="515" y="298" class="fleet-logo__word" textLength="895" lengthAdjust="spacingAndGlyphs">FLEET</text>
+    </svg></h1>
+    <p class="cs-hero__dek">A control room for the people who watch self-driving delivery vehicles. Operators were buried in equal-looking alerts, so the few urgent ones got lost.</p>
+    <div class="pillbar" data-rv>
+      <span><b>Role</b>Sole designer</span><span><b>Time</b>2025 to 2026</span><span><b>Platform</b>Desktop web</span><span><b>Impact</b>41s to 14s</span>
+    </div>
+
+    <div class="dev-stage" data-rv style="margin-top:22px">
+      <div class="dev-car"><div class="dev-car__dash">
+        <div class="dev-car__top"><span class="dev-car__emblem"><i></i>Fleet</span><span>Ops console</span></div>
+        <div class="dev-car__screen">
+    <div class="fleetmap" role="img" aria-label="Looping map of an autonomous fleet streaming telemetry to operations hubs">
+      <div class="fleetmap__hud"><span><i></i>6 AV online</span><span>AV-204 path blocked</span><span>latency 38 ms</span></div>
+      <svg viewBox="0 0 960 320" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+        <defs><radialGradient id="fmg-ff4d3d"><stop offset="0" stop-color="#ff4d3d" stop-opacity=".6"/><stop offset="1" stop-color="#ff4d3d" stop-opacity="0"/></radialGradient><radialGradient id="fmg-3f8cff"><stop offset="0" stop-color="#3f8cff" stop-opacity=".6"/><stop offset="1" stop-color="#3f8cff" stop-opacity="0"/></radialGradient><radialGradient id="fmg-f4b400"><stop offset="0" stop-color="#f4b400" stop-opacity=".6"/><stop offset="1" stop-color="#f4b400" stop-opacity="0"/></radialGradient><path id="L1" d="M80 60 H400 Q440 60 440 100 V220 Q440 260 400 260 H80 Q40 260 40 220 V100 Q40 60 80 60 Z"/><path id="L2" d="M560 60 H880 Q920 60 920 100 V220 Q920 260 880 260 H560 Q520 260 520 220 V100 Q520 60 560 60 Z"/><path id="L3" d="M270 112 H690 Q702 112 702 124 V196 Q702 208 690 208 H270 Q258 208 258 196 V124 Q258 112 270 112 Z"/></defs>
+        <g class="fm-grid"><path d="M0 0V320" /><path d="M60 0V320" /><path d="M120 0V320" /><path d="M180 0V320" /><path d="M240 0V320" /><path d="M300 0V320" /><path d="M360 0V320" /><path d="M420 0V320" /><path d="M480 0V320" /><path d="M540 0V320" /><path d="M600 0V320" /><path d="M660 0V320" /><path d="M720 0V320" /><path d="M780 0V320" /><path d="M840 0V320" /><path d="M900 0V320" /><path d="M960 0V320" /><path d="M0 0H960" /><path d="M0 40H960" /><path d="M0 80H960" /><path d="M0 120H960" /><path d="M0 160H960" /><path d="M0 200H960" /><path d="M0 240H960" /><path d="M0 280H960" /><path d="M0 320H960" /></g>
+        <g fill="none" stroke="#2a3a55" stroke-width="2"><use href="#L1"/><use href="#L2"/><use href="#L3" stroke-dasharray="2 6"/></g>
+        <path d="M480 160 L240 60" stroke="#3f8cff" stroke-opacity=".12" fill="none" stroke-dasharray="3 5"/><circle r="2.4" fill="#7db4ff"><animateMotion dur="2s" begin="0.0s" repeatCount="indefinite" path="M480 160 L240 60"/><animate attributeName="opacity" values="0;1;1;0" dur="2s" begin="0.0s" repeatCount="indefinite"/></circle><path d="M480 160 L400 260" stroke="#3f8cff" stroke-opacity=".12" fill="none" stroke-dasharray="3 5"/><circle r="2.4" fill="#7db4ff"><animateMotion dur="2s" begin="-0.7s" repeatCount="indefinite" path="M480 160 L400 260"/><animate attributeName="opacity" values="0;1;1;0" dur="2s" begin="-0.7s" repeatCount="indefinite"/></circle><path d="M480 160 L560 60" stroke="#3f8cff" stroke-opacity=".12" fill="none" stroke-dasharray="3 5"/><circle r="2.4" fill="#7db4ff"><animateMotion dur="2s" begin="-1.4s" repeatCount="indefinite" path="M480 160 L560 60"/><animate attributeName="opacity" values="0;1;1;0" dur="2s" begin="-1.4s" repeatCount="indefinite"/></circle><path d="M480 160 L880 260" stroke="#3f8cff" stroke-opacity=".12" fill="none" stroke-dasharray="3 5"/><circle r="2.4" fill="#7db4ff"><animateMotion dur="4s" begin="-2.1s" repeatCount="indefinite" path="M480 160 L880 260"/><animate attributeName="opacity" values="0;1;1;0" dur="4s" begin="-2.1s" repeatCount="indefinite"/></circle><path d="M700 160 L480 160" stroke="#3f8cff" stroke-opacity=".12" fill="none" stroke-dasharray="3 5"/><circle r="2.4" fill="#7db4ff"><animateMotion dur="2s" begin="-2.8s" repeatCount="indefinite" path="M700 160 L480 160"/><animate attributeName="opacity" values="0;1;1;0" dur="2s" begin="-2.8s" repeatCount="indefinite"/></circle>
+        <g transform="translate(240,60)"><rect x="-4" y="-4" width="8" height="8" fill="#0b1220" stroke="#3f8cff" stroke-width="1.2"/><circle r="4" fill="none" stroke="#3f8cff" stroke-width="1"><animate attributeName="r" values="4;26" dur="8s" begin="0.00s" repeatCount="indefinite"/><animate attributeName="opacity" values=".7;0" dur="8s" begin="0.00s" repeatCount="indefinite"/></circle></g><g transform="translate(400,260)"><rect x="-4" y="-4" width="8" height="8" fill="#0b1220" stroke="#3f8cff" stroke-width="1.2"/><circle r="4" fill="none" stroke="#3f8cff" stroke-width="1"><animate attributeName="r" values="4;26" dur="8s" begin="-1.33s" repeatCount="indefinite"/><animate attributeName="opacity" values=".7;0" dur="8s" begin="-1.33s" repeatCount="indefinite"/></circle></g><g transform="translate(560,60)"><rect x="-4" y="-4" width="8" height="8" fill="#0b1220" stroke="#3f8cff" stroke-width="1.2"/><circle r="4" fill="none" stroke="#3f8cff" stroke-width="1"><animate attributeName="r" values="4;26" dur="8s" begin="-2.67s" repeatCount="indefinite"/><animate attributeName="opacity" values=".7;0" dur="8s" begin="-2.67s" repeatCount="indefinite"/></circle></g><g transform="translate(880,260)"><rect x="-4" y="-4" width="8" height="8" fill="#0b1220" stroke="#3f8cff" stroke-width="1.2"/><circle r="4" fill="none" stroke="#3f8cff" stroke-width="1"><animate attributeName="r" values="4;26" dur="8s" begin="-4.00s" repeatCount="indefinite"/><animate attributeName="opacity" values=".7;0" dur="8s" begin="-4.00s" repeatCount="indefinite"/></circle></g><g transform="translate(480,160)"><rect x="-4" y="-4" width="8" height="8" fill="#0b1220" stroke="#3f8cff" stroke-width="1.2"/><circle r="4" fill="none" stroke="#3f8cff" stroke-width="1"><animate attributeName="r" values="4;26" dur="8s" begin="-5.33s" repeatCount="indefinite"/><animate attributeName="opacity" values=".7;0" dur="8s" begin="-5.33s" repeatCount="indefinite"/></circle></g><g transform="translate(700,160)"><rect x="-4" y="-4" width="8" height="8" fill="#0b1220" stroke="#3f8cff" stroke-width="1.2"/><circle r="4" fill="none" stroke="#3f8cff" stroke-width="1"><animate attributeName="r" values="4;26" dur="8s" begin="-6.67s" repeatCount="indefinite"/><animate attributeName="opacity" values=".7;0" dur="8s" begin="-6.67s" repeatCount="indefinite"/></circle></g>
+        <g><circle r="14" fill="url(#fmg-ff4d3d)"/><circle r="9" fill="none" stroke="#ff4d3d" stroke-width="1.5"><animate attributeName="r" values="5;16;5" dur="2s" repeatCount="indefinite"/><animate attributeName="opacity" values=".8;0;.8" dur="2s" repeatCount="indefinite"/></circle><circle r="3.6" fill="#ff4d3d"/><text x="10" y="-9" class="fm-t">AV-204</text><animateMotion dur="8s" begin="0s" repeatCount="indefinite" rotate="0"><mpath href="#L1"/></animateMotion></g>
+<g><circle r="14" fill="url(#fmg-3f8cff)"/><circle r="3.6" fill="#3f8cff"/><text x="10" y="-9" class="fm-t">AV-071</text><animateMotion dur="8s" begin="-4s" repeatCount="indefinite" rotate="0"><mpath href="#L1"/></animateMotion></g>
+<g><circle r="14" fill="url(#fmg-f4b400)"/><circle r="3.6" fill="#f4b400"/><text x="10" y="-9" class="fm-t">AV-318</text><animateMotion dur="8s" begin="-1s" repeatCount="indefinite" rotate="0"><mpath href="#L2"/></animateMotion></g>
+<g><circle r="14" fill="url(#fmg-3f8cff)"/><circle r="3.6" fill="#3f8cff"/><text x="10" y="-9" class="fm-t">AV-112</text><animateMotion dur="8s" begin="-5s" repeatCount="indefinite" rotate="0"><mpath href="#L2"/></animateMotion></g>
+<g><circle r="14" fill="url(#fmg-3f8cff)"/><circle r="3.6" fill="#3f8cff"/><animateMotion dur="4s" begin="0s" repeatCount="indefinite" rotate="0"><mpath href="#L3"/></animateMotion></g>
+<g><circle r="14" fill="url(#fmg-3f8cff)"/><circle r="3.6" fill="#3f8cff"/><animateMotion dur="4s" begin="-2s" repeatCount="indefinite" rotate="0"><mpath href="#L3"/></animateMotion></g>
+
+      </svg>
+    </div>
+        </div>
+        <div class="dev-car__knobs" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+      </div></div>
+    </div>
+
+    <div class="dev-stage" data-rv style="margin-top:clamp(40px,5vw,72px)">
+      <div class="dev-monitor"><div class="dev-monitor__bezel"><div class="dev-monitor__screen">
+    <div class="ffdemo vframe-live" aria-label="Looping demo of the Fleet copilot triaging incidents">
+      <div class="ffdemo__bar"><span>fleet.ops / live teleoperations</span><span class="live"><i></i>LIVE</span></div>
+      <div class="ffdemo__grid">
+        <div class="ffdemo__q">
+          <div class="ffdemo__scan" aria-hidden="true"></div>
+          <div class="ffq crit claim"><div><b>Path blocked, AV-204</b><div>King St, downtown</div></div><span class="ffq__chip">claimed by you</span></div>
+          <div class="ffq"><b>Low confidence, AV-318</b><span>01:52</span></div>
+          <div class="ffq"><b>Reroute, AV-022</b><span>02:40</span></div>
+          <div class="ffdemo__spark" aria-hidden="true">
+            <svg viewBox="0 0 420 34" preserveAspectRatio="none"><path class="l" d="M0,24 L40,22 L80,26 L120,14 L160,20 L200,8 L240,18 L280,12 L320,22 L360,16 L420,20"/></svg>
+          </div>
+        </div>
+        <div class="ffcopilot">
+          <div class="ffcopilot__h"><span class="orb" aria-hidden="true"></span>Fleet Copilot</div>
+          <div class="ffsug">
+            <p><b>AV-204 is blocked</b> by a stopped van. Nudge 2m into the clear lane? <span class="fftype" aria-hidden="true"><i></i><i></i><i></i></span></p>
+            <p><b>Latency rising on AV-071.</b> Pre-staging the fail-safe hold and a predicted path overlay.</p>
+            <p><b>3 low-confidence alerts</b> auto-resolved. Nothing needs you right now.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+      </div><span class="dev-monitor__led" aria-hidden="true"></span></div><div class="dev-monitor__neck"></div><div class="dev-monitor__foot"></div></div>
+    </div>
+
+    <div class="kpis" data-rv>
+      <div class="kpi"><b>-66%</b><span>Time to intervene</span></div>
+      <div class="kpi"><b>6 to 1</b><span>Clicks to context</span></div>
+      <div class="kpi"><b>+22</b><span>SUS score</span></div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============ STAGE 02, PROBLEMS ============ -->
+<section id="s2" class="stage">
+  <div class="wrap">
+    <div class="stage__head" data-rv>
+      <span class="stage__num">02</span>
+      <h2 class="stage__title">What was breaking</h2>
+    </div>
+
+    <div class="teardown" data-rv>
+      <div class="tdrow">
+        <div class="tdrow__n">01</div>
+        <div><div class="tdrow__h">Every alert looked equal</div></div>
+        <div class="tdrow__cost">Cost<br>Slow response on the alerts that actually matter</div>
+      </div>
+      <div class="tdrow">
+        <div class="tdrow__n">02</div>
+        <div><div class="tdrow__h">Context lived in three windows</div></div>
+        <div class="tdrow__cost">Cost<br>Longer freeze time in live traffic</div>
+      </div>
+      <div class="tdrow">
+        <div class="tdrow__n">03</div>
+        <div><div class="tdrow__h">Automation never showed its work</div></div>
+        <div class="tdrow__cost">Cost<br>Burnout and wasted capacity</div>
+      </div>
+    </div>
+
+    <p class="decision" data-rv>Seconds matter in a live lane, so alerts now rank by severity.</p>
+  </div>
+</section>
+
+
+
+<!-- ============ STAGE 04, STRATEGY ============ -->
+<section id="s4" class="stage">
+  <div class="wrap">
+    <div class="stage__head" data-rv>
+      <span class="stage__num">03</span>
+      <h2 class="stage__title">Scoping the build</h2>
+    </div>
+
+    <p class="exec-step">Priority against mission</p>
+
+    <div class="matrix" data-rv>
+      <div class="matrix__corner"></div>
+      <div class="matrix__col">Essential</div>
+      <div class="matrix__col">Nice-to-have</div>
+
+      <div class="matrix__row-l">High priority</div>
+      <div class="quad quad--hi" data-label="High Essential">
+        <span class="quad__tag">Ship in v1</span>
+        <span class="qitem">Severity-ranked triage queue</span>
+        <span class="qitem">Single-click contextual teleop zoom</span>
+        <span class="qitem">Live multi-camera + LiDAR overlay</span>
+        <span class="qitem">Emergency takeover toggle</span>
+        <span class="qitem">Latency-spike fail-safe pattern</span>
+      </div>
+      <div class="quad quad--mid" data-label="High Nice-to-have">
+        <span class="quad__tag">Fast-follow</span>
+        <span class="qitem">Confidence rationale tooltips</span>
+        <span class="qitem">Operator handoff notes</span>
+        <span class="qitem">Keyboard-only command palette</span>
+      </div>
+
+      <div class="matrix__row-l">Low priority</div>
+      <div class="quad quad--mid" data-label="Low Essential">
+        <span class="quad__tag">Backlog, required</span>
+        <span class="qitem">Automated shift-report export</span>
+        <span class="qitem">Audit log of every takeover</span>
+        <span class="qitem">Role-based access controls</span>
+      </div>
+      <div class="quad quad--lo" data-label="Low Nice-to-have">
+        <span class="quad__tag">Deferred</span>
+        <span class="qitem">Secondary theme / styling presets</span>
+        <span class="qitem">Custom queue column ordering</span>
+        <span class="qitem">In-app chat between operators</span>
+      </div>
+    </div>
+
+
+
+    <div class="block-gap">
+      <p class="exec-step">Decision logic, before pixels</p>
+      <div class="dlogic" data-rv>
+        <article class="dl">
+          <header><span class="dl__n">1</span><h4>Spot the urgent</h4><span class="dl__b crit">Incident</span></header>
+          <ol>
+            <li><small>Trigger</small>Something goes wrong</li>
+            <li><small>Auto</small>System scores how serious</li>
+            <li class="gate"><small>Gate</small>Is it critical?</li>
+          </ol>
+          <footer><span class="dl__b crit">Yes: jump the queue</span><span class="dl__b warn">No: wait in line</span></footer>
+        </article>
+        <article class="dl">
+          <header><span class="dl__n">2</span><h4>Take action</h4><span class="dl__b good">Claimed</span></header>
+          <ol>
+            <li><small>Human in</small>Operator picks it up</li>
+            <li><small>1 click</small>Full context opens</li>
+            <li class="gate"><small>Gate</small>Fixable remotely?</li>
+          </ol>
+          <footer><span class="dl__b good">Yes: fix and record</span><span class="dl__b warn">No: send a crew</span></footer>
+        </article>
+        <article class="dl dl--fail">
+          <header><span class="dl__n">3</span><h4>Stay safe</h4><span class="dl__b crit">Signal drops</span></header>
+          <ol>
+            <li><small>Auto</small>Vehicle stops safely</li>
+            <li><small>Show</small>Show where it is heading</li>
+            <li><small>Recover</small>Reconnect and carry on</li>
+          </ol>
+          <footer><span class="dl__b good">Resumes on its own</span></footer>
+        </article>
+      </div>
+    </div>
+
+    
+    
+    <div class="arch" data-arch data-w="2230" data-h="1016" data-rv>
+  <div class="arch__bar"><span>Data architecture</span><span><button type="button" data-z="-" aria-label="Zoom out">−</button><button type="button" data-z="+" aria-label="Zoom in">+</button><button type="button" data-fs aria-label="Expand">⤢</button></span></div>
+  <div class="arch__view"><div class="arch__plane" style="width:2230px;height:1016px"><svg class="arch__lines" width="2230" height="1016"><defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker></defs><path d="M236 126C303 126 303 254 366 254" marker-end="url(#ah)"/><path d="M236 254C303 254 303 382 366 382" marker-end="url(#ah)"/><path d="M236 382C303 382 303 510 366 510" marker-end="url(#ah)"/><path d="M236 510C303 510 303 638 366 638" marker-end="url(#ah)"/><path d="M236 638C303 638 303 638 366 638" marker-end="url(#ah)"/><path d="M236 766C303 766 303 766 366 766" marker-end="url(#ah)"/><path d="M236 894C303 894 303 638 366 638" marker-end="url(#ah)"/><path d="M546 254C613 254 613 190 676 190" marker-end="url(#ah)"/><path d="M546 382C613 382 613 702 676 702" marker-end="url(#ah)"/><path d="M546 510C613 510 613 702 676 702" marker-end="url(#ah)"/><path d="M546 638C613 638 613 318 676 318" marker-end="url(#ah)"/><path d="M546 638C613 638 613 574 676 574" marker-end="url(#ah)"/><path d="M546 766C613 766 613 446 676 446" marker-end="url(#ah)"/><path d="M546 766C613 766 613 830 676 830" marker-end="url(#ah)"/><path d="M856 190C768 190 768 318 676 318" marker-end="url(#ah)"/><path d="M856 702C768 702 768 446 676 446" marker-end="url(#ah)"/><path d="M856 574C768 574 768 446 676 446" marker-end="url(#ah)"/><path d="M856 830C768 830 768 318 676 318" marker-end="url(#ah)"/><path d="M856 318C923 318 923 254 986 254" marker-end="url(#ah)"/><path d="M856 318C923 318 923 382 986 382" marker-end="url(#ah)"/><path d="M856 190C923 190 923 638 986 638" marker-end="url(#ah)"/><path d="M546 382C768 382 768 510 986 510" marker-end="url(#ah)"/><path d="M856 446C923 446 923 254 986 254" marker-end="url(#ah)"/><path d="M856 830C923 830 923 766 986 766" marker-end="url(#ah)"/><path d="M1166 254C1233 254 1233 254 1296 254" marker-end="url(#ah)"/><path d="M1166 254C1233 254 1233 382 1296 382" marker-end="url(#ah)"/><path d="M1166 382C1233 382 1233 510 1296 510" marker-end="url(#ah)"/><path d="M1166 382C1233 382 1233 638 1296 638" marker-end="url(#ah)"/><path d="M1166 638C1233 638 1233 638 1296 638" marker-end="url(#ah)"/><path d="M1166 766C1233 766 1233 766 1296 766" marker-end="url(#ah)"/><path d="M1166 510C1233 510 1233 382 1296 382" marker-end="url(#ah)"/><path d="M1476 254C1543 254 1543 190 1606 190" marker-end="url(#ah)"/><path d="M1476 254C1543 254 1543 318 1606 318" marker-end="url(#ah)"/><path d="M1476 382C1543 382 1543 702 1606 702" marker-end="url(#ah)"/><path d="M1476 382C1543 382 1543 446 1606 446" marker-end="url(#ah)"/><path d="M1476 510C1543 510 1543 574 1606 574" marker-end="url(#ah)"/><path d="M1476 638C1543 638 1543 830 1606 830" marker-end="url(#ah)"/><path d="M1476 766C1543 766 1543 574 1606 574" marker-end="url(#ah)"/><path d="M1786 190C1853 190 1853 254 1916 254" marker-end="url(#ah)"/><path d="M1786 702C1853 702 1853 254 1916 254" marker-end="url(#ah)"/><path d="M1786 830C1853 830 1853 766 1916 766" marker-end="url(#ah)"/><path d="M1786 574C1853 574 1853 510 1916 510" marker-end="url(#ah)"/><path d="M1786 318C1853 318 1853 382 1916 382" marker-end="url(#ah)"/><path d="M1786 446C1853 446 1853 638 1916 638" marker-end="url(#ah)"/><path d="M1786 190C1853 190 1853 638 1916 638" marker-end="url(#ah)"/></svg><i class="arch__col" style="left:60px;top:20px">Sources</i><i class="arch__col" style="left:370px;top:20px">Ingest</i><i class="arch__col" style="left:680px;top:20px">Process</i><i class="arch__col" style="left:990px;top:20px">Store</i><i class="arch__col" style="left:1300px;top:20px">Services</i><i class="arch__col" style="left:1610px;top:20px">Operator UI</i><i class="arch__col" style="left:1920px;top:20px">Ops</i><b class="" style="left:60px;top:80px;background:#fff3a3;transform:rotate(-1.0deg)">Vehicle GPS<small>Position, speed</small></b><b class="" style="left:60px;top:208px;background:#fff3a3;transform:rotate(-1.4deg)">Camera feeds<small>6 per vehicle</small></b><b class="" style="left:60px;top:336px;background:#fff3a3;transform:rotate(-0.4deg)">LiDAR<small>Point cloud</small></b><b class="" style="left:60px;top:464px;background:#fff3a3;transform:rotate(-1.2deg)">Battery cells<small>Charge, temp</small></b><b class="" style="left:60px;top:592px;background:#fff3a3;transform:rotate(-1.6deg)">Drive-train CAN<small>Motor, brakes</small></b><b class="" style="left:60px;top:720px;background:#fff3a3;transform:rotate(-0.4deg)">Weather API<small>Road conditions</small></b><b class="" style="left:60px;top:848px;background:#fff3a3;transform:rotate(1.5deg)">Dispatch orders<small>Routes, ETAs</small></b><b class="" style="left:370px;top:208px;background:#ffc9de;transform:rotate(1.1deg)">Stream gateway<small>Secure uplink</small></b><b class="" style="left:370px;top:336px;background:#ffc9de;transform:rotate(1.0deg)">Frame decoder<small>Video to frames</small></b><b class="" style="left:370px;top:464px;background:#ffc9de;transform:rotate(-1.0deg)">Point-cloud packer<small>Compress</small></b><b class="" style="left:370px;top:592px;background:#ffc9de;transform:rotate(0.1deg)">Message queue<small>Ordered events</small></b><b class="" style="left:370px;top:720px;background:#ffc9de;transform:rotate(-0.8deg)">Time sync<small>One clock</small></b><b class="" style="left:680px;top:144px;background:#c8e1ff;transform:rotate(-1.2deg)">Fault detector<small>Spots anomalies</small></b><b class="hot" style="left:680px;top:272px;background:#c8e1ff;transform:rotate(-1.4deg)">Severity ranker<small>Scores urgency</small></b><b class="" style="left:680px;top:400px;background:#c8e1ff;transform:rotate(-1.0deg)">Route predictor<small>Next 10 seconds</small></b><b class="" style="left:680px;top:528px;background:#c8e1ff;transform:rotate(1.5deg)">Latency monitor<small>Link health</small></b><b class="" style="left:680px;top:656px;background:#c8e1ff;transform:rotate(1.2deg)">Object tracker<small>Cars, people</small></b><b class="" style="left:680px;top:784px;background:#c8e1ff;transform:rotate(1.1deg)">Geofence check<small>Zone rules</small></b><b class="" style="left:990px;top:208px;background:#c9f2d2;transform:rotate(1.1deg)">Live state cache<small>Right now</small></b><b class="" style="left:990px;top:336px;background:#c9f2d2;transform:rotate(-1.1deg)">Event store<small>Every incident</small></b><b class="" style="left:990px;top:464px;background:#c9f2d2;transform:rotate(-0.7deg)">Video archive<small>Clips on demand</small></b><b class="" style="left:990px;top:592px;background:#c9f2d2;transform:rotate(0.5deg)">Telemetry DB<small>History</small></b><b class="" style="left:990px;top:720px;background:#c9f2d2;transform:rotate(0.8deg)">Map tiles<small>Lanes, depots</small></b><b class="" style="left:1300px;top:208px;background:#ffd9b0;transform:rotate(1.3deg)">Alert service<small>Pushes the urgent</small></b><b class="" style="left:1300px;top:336px;background:#ffd9b0;transform:rotate(1.4deg)">Takeover service<small>Hand control over</small></b><b class="" style="left:1300px;top:464px;background:#ffd9b0;transform:rotate(-1.5deg)">Handoff notes<small>Shift to shift</small></b><b class="" style="left:1300px;top:592px;background:#ffd9b0;transform:rotate(0.4deg)">Report builder<small>Auto summaries</small></b><b class="" style="left:1300px;top:720px;background:#ffd9b0;transform:rotate(0.6deg)">Access control<small>Roles</small></b><b class="" style="left:1610px;top:144px;background:#e1d2ff;transform:rotate(0.0deg)">Triage queue<small>Ranked list</small></b><b class="" style="left:1610px;top:272px;background:#e1d2ff;transform:rotate(-1.2deg)">Fleet map<small>All vehicles</small></b><b class="" style="left:1610px;top:400px;background:#e1d2ff;transform:rotate(-0.1deg)">Camera wall<small>Live views</small></b><b class="" style="left:1610px;top:528px;background:#e1d2ff;transform:rotate(-1.5deg)">Vehicle detail<small>One click</small></b><b class="" style="left:1610px;top:656px;background:#e1d2ff;transform:rotate(1.6deg)">Takeover panel<small>Emergency</small></b><b class="" style="left:1610px;top:784px;background:#e1d2ff;transform:rotate(1.3deg)">Shift report<small>Export</small></b><b class="" style="left:1920px;top:208px;background:#bdeee9;transform:rotate(0.2deg)">Audit log<small>Who did what</small></b><b class="" style="left:1920px;top:336px;background:#bdeee9;transform:rotate(-0.7deg)">Notifications<small>Push, SMS</small></b><b class="" style="left:1920px;top:464px;background:#bdeee9;transform:rotate(1.5deg)">Operator feedback<small>Tuning loop</small></b><b class="" style="left:1920px;top:592px;background:#bdeee9;transform:rotate(0.3deg)">KPI board<small>Time to intervene</small></b><b class="" style="left:1920px;top:720px;background:#bdeee9;transform:rotate(1.4deg)">Retention rules<small>How long kept</small></b></div></div>
+</div>
+    <p class="decision" data-rv>One metric mattered, time to intervene, so only the top-left quadrant shipped.</p>
+  </div>
+</section>
+
+<!-- ============ STAGE 05, TRANSFORMATION ============ -->
+<section id="s5" class="stage">
+  <div class="wrap">
+    <div class="stage__head" data-rv>
+      <span class="stage__num">04</span>
+      <h2 class="stage__title">The redesign</h2>
+    </div>
+
+    <div class="ba" data-rv>
+      <div class="ba__col before">
+        <div class="ba__tag before"><b></b>Before, legacy console</div>
+        <div class="ba__body">
+          <ul>
+            <li>One flat alert table, newest-first, no severity weighting</li>
+            <li>Map and camera tools in separate windows</li>
+            <li>Telemetry buried in a collapsible log drawer</li>
+            <li>Takeover required confirming through two modal dialogs</li>
+            <li>Auto-resolutions shown as a bare "✓ resolved" with no reasoning</li>
+          </ul>
+        </div>
+      </div>
+      <div class="ba__col after">
+        <div class="ba__tag after"><b></b>After, Fleet</div>
+        <div class="ba__body">
+          <ul>
+            <li>Severity-ranked, grouped triage queue with live countdowns</li>
+            <li>One click on a queue row flies the map and loads the feed</li>
+            <li>Camera, LiDAR and telemetry unified in a single context panel</li>
+            <li>Emergency takeover is a persistent, single-action control</li>
+            <li>Every auto-resolution carries a confidence chip + "why" rationale</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    
+
+    <div class="block-gap">
+      <p class="eyebrow" style="margin-bottom:16px">One component, rethought: the alert row</p>
+      <div class="baslide" data-rv id="baslide" aria-label="Looping comparison: the legacy alert list is scanned and replaced by the redesigned triaged rows">
+        <div class="baslide__panel">
+            <h5>Before , flat list</h5>
+            <div class="rowflat"><span>AV-204 alert</span><span>09:12</span></div>
+            <div class="rowflat"><span>AV-318 alert</span><span>09:12</span></div>
+            <div class="rowflat"><span>AV-071 alert</span><span>09:13</span></div>
+          </div>
+        <div class="baslide__after" aria-hidden="true"><div class="baslide__in">
+          <div class="baslide__panel">
+          <h5>After , triaged</h5>
+          <div class="rowtri"><div class="t"><b>Path blocked, AV-204</b><span class="cd">00:11</span></div><div class="meta"><span>King St, downtown</span><span>Overdue</span><span>press to claim</span></div></div>
+          <div class="rowtri" style="border-left-color:var(--warn);background:var(--warn-bg)"><div class="t"><b>Low confidence, AV-318</b><span class="cd" style="color:var(--warn)">01:52</span></div><div class="meta"><span>School zone</span><span>Needs a look</span></div></div>
+        </div>
+        </div></div>
+        <div class="baslide__scan" aria-hidden="true"></div>
+        <span class="baslide__lab baslide__lab--b">Before</span><span class="baslide__lab baslide__lab--a">After</span>
+      </div>
+    </div>
+
+    <div class="block-gap">
+      <p class="exec-step">Tap the numbers</p>
+      <div class="dev-stage hsx" data-rv id="hsx">
+        <div class="dev-mac"><div class="dev-mac__lid"><div class="dev-mac__screen" data-fit="860x430"><div class="fit__in"><div class="fu">
+  <div class="fu__bar"><span>fleet.ops / live teleoperations</span><span class="fu__live"><i></i>LIVE</span></div>
+  <div class="fu__body">
+    <div class="fu__q"><h6>Triage queue</h6>
+      <div class="fu__row crit"><button type="button" class="hs" data-hs="1" aria-expanded="false" aria-controls="hsPop" aria-label="Hotspot 1: Queue row">1</button><div><b>Path blocked, AV-204</b><small>King St, downtown</small></div><span class="fu__cd"><button type="button" class="hs" data-hs="2" aria-expanded="false" aria-controls="hsPop" aria-label="Hotspot 2: Countdown">2</button>00:11</span><span class="fu__claim"><button type="button" class="hs" data-hs="3" aria-expanded="false" aria-controls="hsPop" aria-label="Hotspot 3: Claim button">3</button>Claim</span></div>
+      <div class="fu__row warn"><div><b>Low confidence, AV-318</b><small>School zone</small></div><span class="fu__cd">01:52</span></div>
+      <div class="fu__row"><div><b>Reroute, AV-022</b><small>Harbour Rd</small></div><span class="fu__cd">02:40</span></div>
+    </div>
+    <div class="fu__map" aria-hidden="true">
+      <svg viewBox="0 0 360 340" preserveAspectRatio="xMidYMid slice"><g stroke="#16213a" stroke-width="1"><path d="M0 85H360M0 170H360M0 255H360M90 0V340M180 0V340M270 0V340"/></g><path d="M0 200 C90 190 120 120 220 130 S330 80 360 70" fill="none" stroke="#2a3a55" stroke-width="3"/><circle cx="215" cy="130" r="18" fill="#ff4d3d" opacity=".18"><animate attributeName="r" values="10;26;10" dur="2s" repeatCount="indefinite"/></circle><circle cx="215" cy="130" r="5" fill="#ff4d3d"/><circle cx="110" cy="240" r="4" fill="#f4b400"/><circle cx="290" cy="220" r="4" fill="#3f8cff"/></svg>
+      <span class="fu__tag">AV-204</span><button type="button" class="hs" data-hs="5" aria-expanded="false" aria-controls="hsPop" aria-label="Hotspot 5: Map pin">5</button>
+    </div>
+    <div class="fu__cp"><h6><i></i>Fleet Copilot</h6>
+      <div class="fu__sug"><button type="button" class="hs" data-hs="4" aria-expanded="false" aria-controls="hsPop" aria-label="Hotspot 4: Copilot suggestion">4</button><p><b>AV-204 is blocked</b> by a stopped van. Nudge 2m into the clear lane?</p><div class="fu__btns"><span class="p">Nudge 2m</span><span>Dismiss</span></div></div>
+      <div class="fu__sug"><p><b>3 low-confidence alerts</b> auto-resolved. Nothing else needs you.</p></div>
+    </div>
+  </div>
+</div></div></div></div><div class="dev-mac__base"></div></div>
+        <div class="hs-pop" id="hsPop" role="status" aria-live="polite" hidden></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+
+<!-- ============ STAGE 07, OUTCOMES ============ -->
+<section id="s7" class="stage">
+  <div class="wrap">
+    <div class="stage__head" data-rv>
+      <span class="stage__num">05</span>
+      <h2 class="stage__title">Where it landed</h2>
+    </div>
+
+    <div class="ed" data-rv>
+      <div class="ed__lead"><b>66<span>%</span></b><p>faster to reach a critical incident, 41s down to 14s</p></div>
+      <ul class="ed__list">
+        <li><span>Clicks to live camera</span><em>6</em><strong>1</strong></li>
+        <li><span>Auto-resolutions re-checked</span><em>30%</em><strong>12%</strong></li>
+        <li><span>Task completion, critical</span><em>79%</em><strong>97%</strong></li>
+        <li><span>End-of-shift fatigue, 1 to 7</span><em>5.4</em><strong>3.1</strong></li>
+        <li><span>System Usability Scale</span><em>68</em><strong>90</strong></li>
+        <li class="ed__h"><span></span><em>Legacy</em><strong>Fleet</strong></li>
+      </ul>
+    </div>
+    <p class="ed__q" data-rv>Trust grows when reasoning is visible, so every auto-resolve shows its why.</p>
+  </div>
+</section>
+
+<!-- back to work -->
+<section class="backwork">
+  <div class="wrap">
+    <p>End of case study</p>
+    <a href="index.html">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
+      Back to all work
+    </a>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="wrap footer-grid">
+    <small>© 2026 Ethan Goldshmid</small>
+    <div class="footer-links">
+      <a href="index.html">Work</a>
+      <a href="contact.html">Contact</a>
+      <a href="mailto:Eitan468@gmail.com">Email</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  "use strict";
+  // ---- Draggable wireframe frames ----
+  try {
+    var board = document.getElementById('wboard');
+    if (board) { var fit=function(){ board.querySelectorAll('.wframe').forEach(function(f){ var m=board.clientWidth-f.offsetWidth-8; if(parseFloat(f.style.left)>m) f.style.left=Math.max(8,m)+'px'; }); }; fit(); window.addEventListener('resize',fit); }
+    if (board && window.PointerEvent) {
+      board.querySelectorAll('.wframe').forEach(function(f){
+        var ox=0, oy=0, dragging=false;
+        f.addEventListener('pointerdown', function(e){
+          dragging=true; f.classList.add('drag');
+          var r=f.getBoundingClientRect(); ox=e.clientX-r.left; oy=e.clientY-r.top;
+          try{f.setPointerCapture(e.pointerId);}catch(x){} e.preventDefault();
+        });
+        f.addEventListener('pointermove', function(e){
+          if(!dragging) return;
+          var b=board.getBoundingClientRect();
+          var x=Math.max(0, Math.min(b.width-f.offsetWidth, e.clientX-b.left-ox));
+          var y=Math.max(0, Math.min(b.height-f.offsetHeight, e.clientY-b.top-oy));
+          f.style.left=x+'px'; f.style.top=y+'px';
+        });
+        var stop=function(){ dragging=false; f.classList.remove('drag'); };
+        f.addEventListener('pointerup', stop); f.addEventListener('pointercancel', stop);
+      });
+    }
+  } catch(e){}
+})();
+</script>
+<script src="app.js"></script>
+<script>try{if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){var f=document.querySelector('.fleetmap svg');if(f&&f.pauseAnimations)f.pauseAnimations();}}catch(e){}
+(function(){
+  try{
+    /* fit fixed-size mockups to their frame */
+    var fits=document.querySelectorAll('[data-fit]');
+    function fit(){ fits.forEach(function(f){ var d=f.getAttribute('data-fit').split('x'), w=+d[0], h=+d[1], inn=f.firstElementChild; var sc=Math.min(1,f.clientWidth/w); inn.style.width=w+'px'; inn.style.height=h+'px'; inn.style.transform='scale('+sc+')'; inn.style.transformOrigin='0 0'; f.style.height=(h*sc)+'px'; f.style.setProperty('--s',sc); }); }
+    fit(); window.addEventListener('resize',fit); if(document.fonts&&document.fonts.ready) document.fonts.ready.then(fit);
+    /* wireframe <-> final cross-fade */
+    var wx=document.getElementById('wfx');
+    if(wx){
+      var btns=wx.querySelectorAll('.wftoggle button'), touched=false;
+      var setSt=function(st){ wx.setAttribute('data-state',st); btns.forEach(function(b){ b.setAttribute('aria-pressed', b.getAttribute('data-st')===st?'true':'false'); }); };
+      btns.forEach(function(b){ b.addEventListener('click',function(){ touched=true; setSt(b.getAttribute('data-st')); }); });
+      if('IntersectionObserver' in window && !window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+        var o=new IntersectionObserver(function(es){ es.forEach(function(e){ if(e.isIntersecting){ setTimeout(function(){ if(!touched) setSt('fin'); },1600); o.disconnect(); } }); },{threshold:.6}); o.observe(wx);
+      }
+    }
+    /* annotated hotspots */
+    var hx=document.getElementById('hsx'), pop=document.getElementById('hsPop');
+    if(hx&&pop){
+      var T={1:['Queue row','Critical alerts rise to the top, so the first glance is always the right one.'],2:['Countdown','A live timer replaces timestamps, so urgency is felt before it is read.'],3:['Claim','One press claims the incident, so two operators never collide.'],4:['Copilot','The suggestion shows its reasoning, so trust is earned rather than assumed.'],5:['Map pin','The map recentres on the incident, so nobody hunts for it.']};
+      var hs=hx.querySelectorAll('.hs'), cur=null, tOpen=0;
+      var close=function(f){ if(cur){ cur.setAttribute('aria-expanded','false'); cur.classList.remove('on'); } cur=null; pop.hidden=true; if(f&&f.focus) f.focus(); };
+      var open=function(b){ tOpen=Date.now(); if(cur&&cur!==b){ cur.setAttribute('aria-expanded','false'); cur.classList.remove('on'); } cur=b; hx.classList.add('touched'); b.setAttribute('aria-expanded','true'); b.classList.add('on'); var t=T[b.getAttribute('data-hs')]; pop.innerHTML='<b>'+b.getAttribute('data-hs')+'  '+t[0]+'</b>'+t[1]; pop.hidden=false;
+        var sr=hx.getBoundingClientRect(), br=b.getBoundingClientRect(), pw=pop.offsetWidth, x=br.left-sr.left+br.width/2-pw/2; x=Math.max(10,Math.min(sr.width-pw-10,x)); var y=br.bottom-sr.top+12; if(y+pop.offsetHeight>sr.height-8) y=br.top-sr.top-pop.offsetHeight-12; pop.style.left=x+'px'; pop.style.top=Math.max(8,y)+'px'; };
+      hs.forEach(function(b){
+        b.addEventListener('click',function(e){ e.stopPropagation(); if(cur===b){ if(Date.now()-tOpen>400) close(); } else open(b); });
+        b.addEventListener('focus',function(){ open(b); });
+        b.addEventListener('mouseenter',function(){ if(window.matchMedia('(hover:hover)').matches) open(b); });
+      });
+      hx.addEventListener('mouseleave',function(){ if(window.matchMedia('(hover:hover)').matches&&document.activeElement.className.indexOf('hs')<0) close(); });
+      document.addEventListener('click',function(e){ if(cur&&!e.target.closest('.hs')&&!e.target.closest('.hs-pop')) close(); });
+      document.addEventListener('keydown',function(e){ if(e.key==='Escape'&&cur) close(cur); });
+    }
+  }catch(e){}
+})();
+</script>
+<script>(function(){var a=document.querySelector("[data-arch]");if(!a)return;var v=a.querySelector(".arch__view"),pl=a.querySelector(".arch__plane"),x=0,y=0,z=1,dn=0,sx,sy,PW=+a.dataset.w,PH=+a.dataset.h;function ap(){pl.style.transform="translate("+x+"px,"+y+"px) scale("+z+")"}function fit(){var r=v.getBoundingClientRect();z=Math.min(1,Math.max(.25,Math.min(r.width/PW,r.height/PH)));x=(r.width-PW*z)/2;y=(r.height-PH*z)/2;ap()}function zm(f){var r=v.getBoundingClientRect(),cx=r.width/2,cy=r.height/2,n=Math.min(2,Math.max(.2,z*f));x=cx-(cx-x)*(n/z);y=cy-(cy-y)*(n/z);z=n;ap()}a.querySelectorAll("[data-z]").forEach(function(b){b.onclick=function(){zm(b.dataset.z=="+"?1.25:.8)}});a.querySelector("[data-fs]").onclick=function(){a.classList.toggle("is-fs");setTimeout(fit,30)};v.addEventListener("pointerdown",function(e){e.preventDefault();dn=1;sx=e.clientX-x;sy=e.clientY-y;v.setPointerCapture(e.pointerId);v.classList.add("drag")});v.addEventListener("pointermove",function(e){if(dn){x=e.clientX-sx;y=e.clientY-sy;ap()}});v.addEventListener("pointerup",function(){dn=0;v.classList.remove("drag")});v.addEventListener("wheel",function(e){if(e.ctrlKey){e.preventDefault();zm(e.deltaY<0?1.1:.9)}},{passive:false});fit();addEventListener("resize",fit)})()</script></body>
+</html>
